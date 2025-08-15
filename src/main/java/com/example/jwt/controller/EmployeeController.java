@@ -32,6 +32,7 @@ public class EmployeeController {
     @Autowired
     private AuthenticationManager authenticationManager;
 
+    // Endpoint for employee registration
     @PostMapping("/register")
     public ResponseEntity<ResponseStructure<String>> registerEmployee(@RequestBody EmployeeDto employeeDto) {
         ResponseStructure<String> response = new ResponseStructure<>();
@@ -69,4 +70,44 @@ public class EmployeeController {
         }
     }
 
-    
+    // Endpoint for employee login
+    @PostMapping("/login")
+    public ResponseEntity<ResponseStructure<LoginDto>> userLogin(@RequestBody LoginDto loginDto) {
+        ResponseStructure<LoginDto> response = new ResponseStructure<>();
+
+        try {
+            // Authenticate the user
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginDto.getEmail(), loginDto.getPassword()));
+
+            // Load user details to access roles
+            UserDetails userDetails = userDetailsService.loadUserByUsername(loginDto.getEmail());
+
+            // Get the role from the authorities
+            String role = userDetails.getAuthorities().iterator().next().getAuthority();
+
+            // Generate JWT token
+            String token = jwtService.generateToken(loginDto.getEmail(), role);
+
+            // Set token into response DTO
+            loginDto.setToken(token);
+
+            response.setSuccess(true);
+            response.setMessage("Login successful");
+            response.setData(loginDto);
+
+            return new ResponseEntity<>(response, HttpStatus.OK);
+
+        } catch (AuthenticationException e) {
+            response.setSuccess(false);
+            response.setMessage("Invalid username or password");
+            response.setData(null);
+            return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+        } catch (Exception e) {
+            response.setSuccess(false);
+            response.setMessage("An error occurred: " + e.getMessage());
+            response.setData(null);
+            return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+}
